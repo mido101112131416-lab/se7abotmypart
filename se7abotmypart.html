@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- هذه أكواد أساسية لضمان عمل الصفحة بشكل صحيح على كل الأجهزة. -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- عنوان الصفحة الذي يظهر في التاب الخاص بالمتصفح. -->
+    <title>AI Health Chatbot</title>
+    <!-- استيراد مكتبة Tailwind CSS لتسهيل عملية التصميم. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /*
+        * يا يوسف، هذا الجزء هو كود الـ CSS المخصص لتصميم التطبيق.
+        * يمكنك تعديل أي من هذه الخصائص لتغيير شكل التطبيق بالكامل.
+        */
+
+        /* الـ styles الخاصة بجسم الصفحة بالكامل. */
+        .app-body {
+            background-color: #f3f4f6;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* حاوية رسائل الشات، مع خاصية التمرير (scrolling). */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            height: calc(100vh - 8rem);
+        }
+
+        /* الـ styles لكل رسالة شات. */
+        .chat-message {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* الـ styles الخاصة برسائل المستخدم. */
+        .chat-message.user {
+            background-color: #dbeafe;
+            margin-left: auto;
+        }
+        
+        /* الـ styles الخاصة برسائل الذكاء الاصطناعي. */
+        .chat-message.ai {
+            background-color: #ffffff;
+            margin-right: auto;
+        }
+
+        /* الـ styles الخاصة بأيقونة التحميل (spinner). */
+        .loading-spinner {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: #ffffff;
+            align-self: flex-start;
+            margin-right: auto;
+        }
+        .loading-spinner.hidden {
+            display: none;
+        }
+
+        /* الـ animation التي تجعل أيقونة التحميل تدور. */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-custom {
+            animation: spin 1s linear infinite;
+        }
+
+        /* حاوية منطقة الإدخال وزر الإرسال. */
+        .input-area {
+            padding: 1rem;
+            background-color: #ffffff;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        /* مربع إدخال الرسائل. */
+        .message-input {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 9999px;
+            border: 1px solid #d1d5db;
+            outline: none;
+            transition: all 0.2s ease-in-out;
+        }
+        .message-input:focus {
+            ring-width: 2px;
+            ring-color: #3b82f6;
+        }
+
+        /* زر الإرسال. */
+        .send-button {
+            padding: 0.75rem;
+            background-color: #3b82f6;
+            color: #ffffff;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s ease-in-out;
+        }
+        .send-button:hover {
+            background-color: #2563eb;
+        }
+        .send-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        /* تعديلات بسيطة على شريط التمرير (scrollbar). */
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+        
+        /* حاوية شريط الخطورة. */
+        .danger-bar-container {
+            width: 100%;
+            height: 10px;
+            background-color: #e5e7eb;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        /* الشريط الداخلي الذي يملأ الحاوية. */
+        .danger-bar-fill {
+            height: 100%;
+            width: 0; /* يبدأ من صفر ويتم التحكم به بواسطة JavaScript. */
+            background-image: linear-gradient(to right, #4ade80, #facc15, #ef4444);
+            transition: width 1s ease-in-out;
+        }
+
+        /* تسمية شريط الخطورة. */
+        .danger-label {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #4b5563;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body class="app-body">
+
+    <!-- حاوية لجميع رسائل الشات. -->
+    <div id="chat-container" class="chat-container">
+    </div>
+
+    <!-- أيقونة التحميل التي تظهر أثناء انتظار رد الذكاء الاصطناعي. -->
+    <div id="loading-spinner" class="loading-spinner hidden">
+        <div class="flex-shrink-0">
+            <svg class="w-8 h-8 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M12 2c5.523 0 10 4.477 10 10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-spin-custom" />
+            </svg>
+        </div>
+        <div class="flex-1 text-gray-800">
+            <p class="font-semibold capitalize">AI</p>
+            <p>Thinking...</p>
+        </div>
+    </div>
+
+    <!-- منطقة الإدخال التي تحتوي على مربع النص وزر الإرسال. -->
+    <div class="input-area">
+        <div class="flex items-center gap-2">
+            <!-- مربع إدخال رسالة المستخدم. -->
+            <input
+                type="text"
+                id="message-input"
+                class="message-input"
+                placeholder="Type your health question..."
+            />
+            <!-- زر إرسال الرسالة. -->
+            <button
+                id="send-button"
+                class="send-button"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- هنا يبدأ كود الـ JavaScript. -->
+    <script type="module">
+        // استيراد (Import) مكتبات Firebase الأساسية من Google.
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // جلب عناصر الـ HTML بناءً على الـ ID الخاص بها.
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // تعريف المتغيرات العامة التي سيتم استخدامها في التطبيق.
+        let db;
+        let auth;
+        let userId;
+        let isAuthReady = false; // متغير للتأكد من أن تسجيل الدخول قد تم.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // دالة لتهيئة (initialize) خدمات Firebase (Auth و Firestore).
+        const initializeFirebase = async () => {
+            try {
+                // قراءة إعدادات Firebase من البيئة.
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                // الاستماع لتغييرات حالة تسجيل الدخول.
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                    } else {
+                        // إذا كان المستخدم غير مسجل دخول، يتم تسجيل دخوله بشكل مجهول.
+                        await signInAnonymously(auth);
+                    }
+                    isAuthReady = true;
+                    // بعد تسجيل الدخول، يتم الاستماع لرسائل الشات.
+                    listenForMessages();
+                });
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+            }
+        };
+
+        // دالة للاستماع لرسائل جديدة في قاعدة بيانات Firestore في الوقت الفعلي.
+        const listenForMessages = () => {
+            // نتأكد أن Firebase جاهز والمستخدم مسجل دخول.
+            if (!isAuthReady || !db || !userId) return;
+
+            // تحديد مسار (path) الرسائل في قاعدة البيانات.
+            const messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
+            // عمل استعلام (query) لترتيب الرسائل حسب الوقت.
+            const q = query(messagesCollectionRef, orderBy('timestamp'));
+
+            // onSnapshot تستمع للتغييرات في الاستعلام بشكل مباشر.
+            onSnapshot(q, (querySnapshot) => {
+                const fetchedMessages = [];
+                // إضافة كل رسالة من قاعدة البيانات إلى مصفوفة.
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    // محاولة تحويل محتوى الرسالة من JSON string إلى كائن JavaScript.
+                    try {
+                        data.content = JSON.parse(data.content);
+                    } catch (e) {
+                        // إذا لم يكن JSON، يتم تركه كما هو.
+                    }
+                    fetchedMessages.push(data);
+                });
+                // عرض الرسائل على الشاشة.
+                renderMessages(fetchedMessages);
+            });
+        };
+
+        // دالة لعرض الرسائل في الـ HTML.
+        const renderMessages = (messages) => {
+            chatContainer.innerHTML = ''; // مسح الرسائل القديمة.
+            messages.forEach((msg) => {
+                // إنشاء عنصر div لكل رسالة.
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${msg.role}`;
+
+                // إضافة أيقونة للمستخدم أو للذكاء الاصطناعي.
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'flex-shrink-0';
+                if (msg.role === 'user') {
+                    iconDiv.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+                } else {
+                    iconDiv.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z"/><path d="M12 12L12 16"/><path d="M12 8L12 8"/></svg>';
+                }
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'flex-1 text-gray-800';
+                // التحقق مما إذا كان المحتوى بصيغة JSON لعرض شريط الخطورة.
+                if (msg.role === 'ai' && msg.content.response) {
+                    const riskLevel = msg.content.response.risk_level;
+                    const mainContent = msg.content.response.content;
+
+                    // إضافة كود HTML لشريط الخطورة.
+                    contentDiv.innerHTML = `
+                        <p class="font-semibold capitalize">AI</p>
+                        <p>${mainContent}</p>
+                        <div class="danger-bar-container">
+                            <div id="bar-${msg.timestamp}" class="danger-bar-fill"></div>
+                        </div>
+                        <div class="danger-label">Risk Level: ${riskLevel}%</div>
+                    `;
+
+                    // استخدام setTimeout لتشغيل الـ animation بعد ظهور العنصر.
+                    setTimeout(() => {
+                        const barElement = document.getElementById(`bar-${msg.timestamp}`);
+                        if (barElement) {
+                            barElement.style.width = `${riskLevel}%`;
+                        }
+                    }, 10);
+                } else {
+                    contentDiv.innerHTML = `<p class="font-semibold capitalize">${msg.role}</p><p>${msg.content}</p>`;
+                }
+
+                // إضافة الأيقونة والمحتوى إلى الرسالة.
+                messageDiv.appendChild(iconDiv);
+                messageDiv.appendChild(contentDiv);
+                chatContainer.appendChild(messageDiv);
+            });
+            // تحريك الشاشة لآخر رسالة.
+            scrollToBottom();
+        };
+
+        // دالة لتحريك شاشة الشات لأسفل لعرض أحدث رسالة.
+        const scrollToBottom = () => {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+
+        // متغير لمنع إرسال رسائل متعددة في نفس الوقت.
+        let isSending = false;
+
+        // الدالة الرئيسية لإرسال الرسائل.
+        const sendMessage = async (input) => {
+            // منع الإرسال إذا كان المدخل فارغًا أو كان هناك رسالة قيد الإرسال.
+            if (!input || isSending) return;
+
+            isSending = true;
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            loadingSpinner.classList.remove('hidden');
+
+            const userMessage = {
+                role: 'user',
+                content: input,
+                timestamp: Date.now()
+            };
+            
+            // تخزين رسالة المستخدم في قاعدة بيانات Firestore.
+            if (db && userId) {
+                const userDocRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'messages'));
+                await setDoc(userDocRef, userMessage);
+            }
+
+            try {
+                // *** يا يوسف، هذا هو الجزء الذي يتواصل مع Gemini API مباشرة! ***
+                const apiKey = ""; // اترك هذا فارغاً. سيتم توفيره تلقائياً.
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const prompt = `
+                You are a helpful AI health assistant. Please provide general health information and tips.
+                Do not give medical advice or diagnoses. Always advise the user to consult a healthcare professional.
+
+                User question: ${input}
+                `;
+                
+                const payload = {
+                    "contents": [{"parts":[{"text": prompt}]}]
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                let generatedText = "I'm sorry, I couldn't get a response. Please try again.";
+                let riskLevel = 0;
+
+                // التحقق من بنية الرد وتعيين النص.
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    generatedText = result.candidates[0].content.parts[0].text;
+                    riskLevel = 50; // مستوى خطورة افتراضي.
+                }
+
+                const aiMessage = {
+                    role: 'ai',
+                    content: {
+                        response: {
+                            risk_level: riskLevel,
+                            content: generatedText
+                        }
+                    },
+                    timestamp: Date.now()
+                };
+
+                // تخزين رسالة الذكاء الاصطناعي في قاعدة البيانات.
+                if (db && userId) {
+                    const aiDocRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'messages'));
+                    await setDoc(aiDocRef, aiMessage);
+                }
+                
+            } catch (error) {
+                console.error('API Error:', error);
+                // رسالة خطأ تظهر إذا لم يتمكن التطبيق من الاتصال بالخادم.
+                const errorMessage = {
+                    role: 'ai',
+                    content: {
+                        response: {
+                            risk_level: 0,
+                            content: 'Error connecting to the AI service. Please try again later.'
+                        }
+                    },
+                    timestamp: Date.now()
+                };
+                if (db && userId) {
+                    const errorDocRef = doc(collection(db, 'artifacts', appId, 'users', userId, 'messages'));
+                    await setDoc(errorDocRef, errorMessage);
+                }
+            } finally {
+                // إعادة تفعيل العناصر بعد إتمام الإرسال.
+                isSending = false;
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                loadingSpinner.classList.add('hidden');
+            }
+        };
+
+        // إضافة مستمعي الأحداث لزر الإرسال ومربع الإدخال.
+        sendButton.addEventListener('click', () => sendMessage(messageInput.value));
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage(messageInput.value);
+            }
+        });
+
+        // تشغيل دالة تهيئة Firebase عند تحميل الصفحة.
+        document.addEventListener('DOMContentLoaded', initializeFirebase);
+    </script>
+</body>
+</html>
